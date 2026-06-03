@@ -49,9 +49,55 @@ Tóm tắt coverage:
 | Route validation | "Cao Bằng đến HCM giá thế nào", "bay từ Hà Nội ra Trường Sa" | NEO hỏi tiếp thông tin đặt vé, nhưng chưa validate điểm đi/điểm đến có hợp lệ trong hệ thống bay. |
 | Complaint recovery | "đúng rồi sao m ngu quá vậy" | NEO không xin lỗi, không hỏi phần nào sai, không đề nghị sửa/kiểm tra lại, mà chuyển thẳng sang xin đánh giá hài lòng. |
 
-## 4. Phân tích 4 paths
+## 4. Mô tả workflow chatbot AI NEO
 
-### 4.1 Happy path
+Dựa trên quá trình test, workflow hiện tại của NEO có thể mô tả như sau:
+
+```text
+User mở chatbot NEO
+        |
+        v
+NEO chào và hỏi user cần hỗ trợ vấn đề gì
+        |
+        v
+User nhập câu hỏi tự nhiên
+        |
+        v
+NEO phân loại intent
+        |
+        +------------------------------+------------------------------+------------------------------+
+        |                              |                              |
+        v                              v                              v
+Câu hỏi thông tin rõ              Câu hỏi cần thêm dữ liệu         Câu hỏi ngoài phạm vi
+        |                              |                              |
+        v                              v                              v
+NEO trả lời trực tiếp             NEO hỏi thêm kênh mua vé,        NEO từ chối và điều hướng
+hoặc đưa link/CTA                 mã đặt chỗ, ngày bay,            về sản phẩm/dịch vụ
+                                  điểm đi/điểm đến                 Vietnam Airlines
+        |                              |
+        v                              v
+User có thể bấm CTA,              NEO tiếp tục thu thập
+xem link, hoặc hỏi tiếp           thông tin để tra cứu
+        |
+        v
+Khi cuộc hội thoại có vẻ kết thúc,
+NEO có thể xin đánh giá mức độ hài lòng
+```
+
+Các nhóm intent NEO xử lý được trong test:
+
+- **Thông tin hành lý:** trả lời về hành lý xách tay, ký gửi, hành lý quá cân/quá kích thước, pin sạc dự phòng.
+- **Đổi vé/hoàn vé:** hỏi thêm kênh mua vé, mã đặt chỗ hoặc đưa link điều kiện giá vé.
+- **Tra cứu giá/chặng bay:** thu thập điểm đi, điểm đến, ngày đi, số lượng hành khách và trả về gợi ý chuyến bay/giá vé.
+- **Vấn đề rủi ro cao:** với case tên trên vé không khớp hộ chiếu, NEO đưa cảnh báo và kênh CSKH.
+- **Ngoài phạm vi:** từ chối kể chuyện cười, tư vấn cổ phiếu, tư vấn thuốc; với tình huống y tế trên máy bay, NEO hướng dẫn báo phi hành đoàn.
+- **Kết thúc hội thoại/survey:** NEO có thể xin user đánh giá mức độ hài lòng theo thang 1-5.
+
+Nhìn tổng thể, NEO đang vận hành như một chatbot intent-based có thêm khả năng hỏi lại thông tin và gợi ý next action. Điểm mạnh là phản hồi nhanh với câu hỏi rõ và biết từ chối một số câu hỏi ngoài phạm vi. Điểm yếu nằm ở các bước cần kiểm chứng dữ liệu, validate route, hoặc recover khi user không hài lòng.
+
+## 5. Phân tích 4 paths
+
+### 5.1 Happy path
 
 NEO làm tốt với câu hỏi có ngữ cảnh rõ và nằm trong miền kiến thức của hãng bay.
 
@@ -64,7 +110,7 @@ Hành lý ký gửi: 01 kiện 23kg.
 
 Giá trị với user: nhanh, đúng vào câu hỏi, không bắt user tự đi tìm FAQ.
 
-### 4.2 Low-confidence path
+### 5.2 Low-confidence path
 
 NEO có dấu hiệu low-confidence tốt trong case đổi vé:
 
@@ -76,7 +122,7 @@ Xin Quý khách cho NEO biết Quý khách đã mua vé qua kênh website, app, 
 
 Tuy nhiên, low-confidence path chưa ổn định. Với câu "Hành lý linh tinh thì tính thế nào?", NEO trả lời một đoạn dài về nhiều loại hành lý trước khi hỏi thêm thông tin. Nếu user đang cần câu trả lời nhanh, đoạn này dễ gây quá tải và vẫn chưa chắc phần nào áp dụng cho trường hợp của mình.
 
-### 4.3 Failure path
+### 5.3 Failure path
 
 Failure mạnh nhất không nằm ở out-of-scope rõ ràng, vì NEO xử lý out-of-scope khá tốt. Failure nằm ở những câu hỏi "có vẻ liên quan đến hàng bay" nhưng cần source hoặc cần validate data.
 
@@ -108,7 +154,7 @@ NEO nhận Hà Nội là điểm khởi hành và tiếp tục hỏi điểm đ�
 
 Điểm gãy: user có thể bị dẫn vào flow điền thông tin cho một hành trình không đặt được, thay vì được báo ngay về giới hạn của hệ thống.
 
-### 4.4 Correction path
+### 5.4 Correction path
 
 Khi user sửa context:
 
@@ -132,7 +178,7 @@ Nếu không cần hỗ trợ thêm, quý khách vui lòng dành chút thời gi
 
 Điểm gãy: bot nhận được tín hiệu không hài lòng nhưng không có complaint recovery. Việc xin rating ngay sau phản ứng tiêu cực dễ làm user cảm thấy complaint bị bỏ qua.
 
-## 5. Path yếu nhất
+## 6. Path yếu nhất
 
 Path yếu nhất là **Data/Tool validation + Source recovery + Complaint recovery**.
 
@@ -144,7 +190,7 @@ NEO không yếu ở việc từ chối ngoài phạm vi. NEO yếu khi câu h�
 - hỏi lại trước khi trả lời dài trong các intent mơ hồ.
 - xin lỗi, hỏi lại và recover khi user thể hiện không hài lòng.
 
-## 6. Finding note
+## 7. Finding note
 
 ```text
 Khi user hỏi các câu hỏi nằm gần ranh giới giữa thông tin hàng không và thông tin cần kiểm chứng, như so sánh delay giữa hãng bay hoặc hỏi giá vé đến điểm không nằm trong hệ thống đặt vé,
@@ -155,7 +201,7 @@ Lỗi thuộc layer Data/Tool + Source + UX Recovery + Human Handoff.
 Nên sửa bằng requirement: mỗi claim số liệu/phát ngôn so sánh phải có source và ngày cập nhật; mỗi intent tìm giá/đặt vé phải validate điểm đi/điểm đến với airport/route inventory trước khi hỏi tiếp ngày bay/số khách; mỗi tín hiệu không hài lòng phải đi qua complaint recovery trước khi xin rating.
 ```
 
-## 7. Product decision
+## 8. Product decision
 
 NEO không nên trả lời các claim so sánh/định lượng nếu không có source hiển thị. Với các câu hỏi đặt vé, NEO phải chạy bước validate điểm đi/điểm đến trước. Nếu điểm đi/điểm đến không hợp lệ, NEO cần hiển thị thông báo "không tìm thấy điểm đến trong hệ thống đặt vé" và gợi ý điểm gần nhất hoặc kênh CSKH, thay vì tiếp tục form thu thập thông tin.
 
@@ -168,7 +214,7 @@ Quyết định này sẽ đổi SPEC theo 4 hướng:
 - Thêm **recovery behavior** khi user challenge claim: đưa source, nói rõ không có đủ dữ liệu, hoặc rút lại claim.
 - Thêm **complaint recovery behavior** trước khi xin rating: xin lỗi, hỏi lại vấn đề, sửa/kiểm tra lại hoặc handoff.
 
-## 8. As-is sketch
+## 9. As-is sketch
 
 ```text
 User hỏi câu hỏi gần phạm vi hàng bay
@@ -205,7 +251,7 @@ NEO xin đánh giá hài lòng
 Điểm gãy thêm: user cảm thấy complaint bị bỏ qua
 ```
 
-## 9. To-be sketch
+## 10. To-be sketch
 
 ```text
 User hỏi câu hỏi gần phạm vi hàng bay
@@ -234,7 +280,7 @@ Có source   Không source       Hợp lệ         Không hợp lệ        + s
                                Trả về giá/next action                                      Chỉ xin rating sau recovery
 ```
 
-## 10. Test cases để đưa vào SPEC
+## 11. Test cases để đưa vào SPEC
 
 | Test case | Input | Expected behavior |
 |---|---|---|
@@ -247,16 +293,8 @@ Có source   Không source       Hợp lệ         Không hợp lệ        + s
 | Complaint recovery | "đúng rồi sao m ngu quá vậy" | NEO không xin rating ngay. NEO xin lỗi ngắn, hỏi phần nào chưa đúng, đề nghị kiểm tra lại hoặc chuyển CSKH. |
 | Survey timing | User vừa phản ứng tiêu cực sau câu trả lời | NEO không kích hoạt khảo sát hài lòng cho đến khi đã có ít nhất một bước recovery hoặc user xác nhận kết thúc. |
 
-## 11. Kết luận
+## 12. Kết luận
 
 NEO đã làm tốt ở các task có ngữ cảnh rõ và có boundary rõ: trả lời hành lý, hỏi lại kênh mua vé, từ chối chuyện ngoài phạm vi, không tư vấn y tế/tài chính, không hướng dẫn gian lận đổi vé.
 
 Điểm cần sửa không phải "bot không thông minh", mà là **bot cần biết lúc nào phải check data/source trước khi trả lời và lúc nào phải recover khi user không hài lòng**. Với airline chatbot, đây là yêu cầu quan trọng vì thông tin sai, không có source, hoặc complaint bị bỏ qua có thể làm user mất tiền, mất thời gian, lỡ chuyến bay, hoặc mất niềm tin vào kênh hỗ trợ số.
-
-## 12. Checklist tự kiểm trước khi nộp
-
-- [x] Có ít nhất 1 screenshot hoặc observation cụ thể: report dùng 3 evidence files, trong đó round 03 là screenshot về case NEO không xin lỗi mà xin đánh giá hài lòng.
-- [x] Có đủ 4 paths: Happy path, Low-confidence path, Failure path và Correction path đều được phân tích ở mục 4.
-- [x] Finding được viết thành product decision, không chỉ là nhận xét: finding nằm ở mục 6, product decision nằm ở mục 7.
-- [x] Sketch có as-is và to-be: as-is sketch ở mục 8, to-be sketch ở mục 9.
-- [x] Có câu nói rõ finding này sẽ đổi gì trong SPEC: mục 7 nêu 4 thay đổi SPEC gồm source requirement, route validation step, recovery behavior và complaint recovery behavior.
